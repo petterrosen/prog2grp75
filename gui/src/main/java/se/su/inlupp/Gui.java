@@ -1,6 +1,7 @@
 package se.su.inlupp;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -82,9 +83,11 @@ public class Gui extends Application {
     showConnectionButton.setDisable(true);
 
     changeConnectionButton = new Button("Change Connection");
+    changeConnectionButton.setOnAction(new ChangeConnection());
     changeConnectionButton.setDisable(true);
 
     findPathButton = new Button("Find Path");
+    findPathButton.setOnAction(new FindPath());
     findPathButton.setDisable(true);
 
     HBox buttons = new HBox(10,
@@ -104,13 +107,25 @@ public class Gui extends Application {
     center.getChildren().add(imageView);
     root.setCenter(center);
 
-    Scene scene = new Scene(root, 600, 150);
+    // === Bildstorlekslyssnare ===
+    imageView.imageProperty().addListener((obs, oldImage, newImage) -> {
+      if (newImage != null) {
+        Platform.runLater(() -> {
+          center.setPrefSize(newImage.getWidth(), newImage.getHeight());
+          center.setMinSize(newImage.getWidth(), newImage.getHeight());
+          stage.sizeToScene();
+        });
+      }
+    });
+
+    Scene scene = new Scene(root);
     primaryStage.setScene(scene);
     primaryStage.setOnCloseRequest(event -> {
       if (changed && !confirmDiscard()) event.consume();
     });
     primaryStage.show();
   }
+
 
   private void handleNewMap(ActionEvent e) {
     fileChooser.setTitle("Välj bakgrundsbild");
@@ -122,7 +137,7 @@ public class Gui extends Application {
       Image img = new Image(file.toURI().toString());
       imageView.setImage(img);
       imageView.setUserData(file.toURI().toString());
-      center.setPrefSize(img.getWidth(), img.getHeight());
+
 
       places.clear();
       graph = new ListGraph<>();
@@ -132,11 +147,9 @@ public class Gui extends Application {
 
       changed = true;
       setButtonsDisabled(false);
-
-      stage.sizeToScene();
-
     }
   }
+
 
   private void handleOpen(ActionEvent e) {
     if (changed && !confirmDiscard()) return;
@@ -144,6 +157,7 @@ public class Gui extends Application {
     fileChooser.setTitle("Öppna .graph-fil");
     fileChooser.getExtensionFilters().setAll(new FileChooser.ExtensionFilter("Graph Files", "*.graph"));
     File file = fileChooser.showOpenDialog(stage);
+
     if (file != null) {
       places.clear();
       graph = new ListGraph<>();
@@ -157,14 +171,32 @@ public class Gui extends Application {
 
         center.getChildren().clear();
         center.getChildren().add(imageView);
+
+        // Lägg till alla platser och koppla klickhantering
         for (Place p : places) {
           center.getChildren().add(p);
           p.setOnMouseClicked(new PickedPlacesClickHandler());
         }
 
-        changed = false;
+        // === Rita upp alla förbindelser som linjer ===
+        for (Place from : graph.getNodes()) {
+          for (Edge<Place> edge : graph.getEdgesFrom(from)) {
+            Place to = edge.getDestination();
+
+            // Undvik att rita varje förbindelse två gånger (en per riktning)
+            if (from.getName().compareTo(to.getName()) < 0) {
+              Line line = new Line(from.getX(), from.getY(), to.getX(), to.getY());
+              center.getChildren().add(line);
+            }
+          }
+        }
+
+        changed = true;
         currentGraphFile = file;
         setButtonsDisabled(false);
+
+        center.setPrefSize(imageView.getImage().getWidth(), imageView.getImage().getHeight());
+        stage.sizeToScene();
       }
     }
   }
@@ -383,9 +415,112 @@ public class Gui extends Application {
       Place p2 = pickedPlaces.get(1);
 
       Edge<Place> edge = graph.getEdgeBetween(p1, p2);
+      if (edge == null) {
+        showError("Det finns ingen förbindelse mellan de valda platserna.");
+        return;
+      }
+
+      Dialog<ButtonType> dialog = new Dialog<>();
+      dialog.setTitle("Ändra förbindelse");
+      dialog.setHeaderText("Ändra tiden för förbindelsen mellan " + p1.getName() + " och " + p2.getName());
+
+      Label nameLabel = new Label("Namn:");
+      TextField nameField = new TextField(edge.getName());
+      nameField.setEditable(false);
+
+      Label weightLabel = new Label("Ny vikt:");
+      TextField weightField = new TextField(); // Lämna tomt enligt instruktionen
+
+      GridPane grid = new GridPane();
+      grid.setHgap(10);
+      grid.setVgap(10);
+      grid.setPadding(new Insets(20, 150, 10, 10));
+
+      grid.add(nameLabel, 0, 0);
+      grid.add(nameField, 1, 0);
+      grid.add(weightLabel, 0, 1);
+      grid.add(weightField, 1, 1);
+
+      dialog.getDialogPane().setContent(grid);
+      dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+      Optional<ButtonType> result = dialog.showAndWait();
+
+      if (result.isPresent() && result.get() == ButtonType.OK) {
+        try {
+          int newWeight = Integer.parseInt(weightField.getText().trim());
+          if (newWeight < 0) throw new NumberFormatException();
+
+          // Uppdatera båda riktningarna
+          Edge<Place> edge1 = graph.getEdgeBetween(p1, p2);
+          Edge<Place> edge2 = graph.getEdgeBetween(p2, p1);
+
+          if (edge1 != null && edge2 != null) {
+            edge1.setWeight(newWeight);
+            edge2.setWeight(newWeight);
+            changed = true;
+          }
+
+        } catch (NumberFormatException ex) {
+          showError("Vikten måste vara ett positivt heltal.");
+        }
+      }
     }
   }
 
+  class FindPath implements EventHandler<ActionEvent> {
+    private final List<Line> pathLines = new ArrayList<>();
+
+    @Override
+    public void handle(ActionEvent event) {
+      if (pickedPlaces.size() < 2) {
+        showError("Du måste markera två platser först.");
+        return;
+      }
+
+      Place p1 = pickedPlaces.get(0);
+      Place p2 = pickedPlaces.get(1);
+
+      List<Edge<Place>> path = graph.getPath(p1, p2);
+
+      for (Line line : pathLines) {
+        center.getChildren().remove(line);
+      }
+      pathLines.clear();
+
+      if (path == null || path.isEmpty()) {
+        showError("Det finns ingen väg mellan de valda platserna.");
+        return;
+      }
+
+      Place current = p1;
+      int total = 0;
+      String text = "Väg från " + p1.getName() + " till " + p2.getName() + ":\n\n";
+
+      for (Edge<Place> edge : path) {
+        Place next = edge.getDestination();
+
+        Line line = new Line(current.getX(), current.getY(), next.getX(), next.getY());
+        line.setStyle("-fx-stroke: green; -fx-stroke-width: 2;");
+        center.getChildren().add(line);
+        pathLines.add(line);
+
+        text +=" to " + current.getName() + " by " + edge.getName() + " takes " + edge.getWeight() + "\n";
+
+        total += edge.getWeight();
+        current = next;
+      }
+
+      text += "\nTotalt: " + total;
+
+      Alert dialog = new Alert(Alert.AlertType.INFORMATION);
+      dialog.setTitle("Kortaste väg");
+      dialog.setHeaderText(null);
+      dialog.setContentText(text);
+      dialog.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+      dialog.showAndWait();
+    }
+  }
 
 
 

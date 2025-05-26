@@ -1,8 +1,7 @@
 package se.su.inlupp;
 
 import java.io.*;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 public class GraphIO {
 
@@ -10,38 +9,67 @@ public class GraphIO {
         try (PrintWriter writer = new PrintWriter(file)) {
             writer.println(imageUrl); // Rad 1: bakgrundsbild
 
-            StringBuilder sb = new StringBuilder();
+            // Rad 2+: platser
             for (Place p : places) {
-                sb.append(p.getName()).append(",").append(p.getX()).append(",").append(p.getY()).append(";");
+                writer.println("PLACE:" + p.getName() + "," + p.getX() + "," + p.getY());
             }
-            writer.println(sb); // Rad 2: alla platser
 
-            // Förbindelser kan läggas till här om ni vill
+            // Förbindelser (undvik dubbletter)
+            Set<String> savedEdges = new HashSet<>();
+            for (Place from : graph.getNodes()) {
+                for (Edge<Place> edge : graph.getEdgesFrom(from)) {
+                    Place to = edge.getDestination();
+
+                    String key1 = from.getName() + ":" + to.getName();
+                    String key2 = to.getName() + ":" + from.getName();
+                    if (savedEdges.contains(key1) || savedEdges.contains(key2)) continue;
+
+                    writer.println("EDGE:" + from.getName() + "," + to.getName() + "," + edge.getName() + "," + edge.getWeight());
+                    savedEdges.add(key1);
+                }
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     public static String loadGraphFile(File file, List<Place> places, Graph<Place> graph) {
-        try (Scanner scan = new Scanner(file)) {
-            String imageUrl = scan.nextLine();
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String imageUrl = reader.readLine();
+            Map<String, Place> nameToPlace = new HashMap<>();
+            String line;
 
-            if (!scan.hasNextLine()) return imageUrl;
-            String placeLine = scan.nextLine();
-            String[] parts = placeLine.split(";");
-            for (String part : parts) {
-                if (part.isBlank()) continue;
-                String[] data = part.split(",");
-                String name = data[0];
-                double x = Double.parseDouble(data[1]);
-                double y = Double.parseDouble(data[2]);
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("PLACE:")) {
+                    String[] parts = line.substring(6).split(",");
+                    String name = parts[0];
+                    double x = Double.parseDouble(parts[1]);
+                    double y = Double.parseDouble(parts[2]);
 
-                Place p = new Place(name, x, y);
-                places.add(p);
-                graph.add(p);
+                    Place p = new Place(name, x, y);
+                    places.add(p);
+                    graph.add(p);
+                    nameToPlace.put(name, p);
+
+                } else if (line.startsWith("EDGE:")) {
+                    String[] parts = line.substring(5).split(",");
+                    String fromName = parts[0];
+                    String toName = parts[1];
+                    String edgeName = parts[2];
+                    int weight = Integer.parseInt(parts[3]);
+
+                    Place from = nameToPlace.get(fromName);
+                    Place to = nameToPlace.get(toName);
+
+                    if (from != null && to != null) {
+                        graph.connect(from, to, edgeName, weight);
+                    }
+                }
             }
 
             return imageUrl;
+
         } catch (Exception e) {
             e.printStackTrace();
             return null;
