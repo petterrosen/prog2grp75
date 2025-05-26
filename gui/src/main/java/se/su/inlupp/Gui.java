@@ -78,6 +78,7 @@ public class Gui extends Application {
     newConnectionButton.setDisable(true);
 
     showConnectionButton = new Button("Show Connection");
+    showConnectionButton.setOnAction(new ShowConnection());
     showConnectionButton.setDisable(true);
 
     changeConnectionButton = new Button("Change Connection");
@@ -103,7 +104,7 @@ public class Gui extends Application {
     center.getChildren().add(imageView);
     root.setCenter(center);
 
-    Scene scene = new Scene(root, 800, 600);
+    Scene scene = new Scene(root, 600, 150);
     primaryStage.setScene(scene);
     primaryStage.setOnCloseRequest(event -> {
       if (changed && !confirmDiscard()) event.consume();
@@ -131,6 +132,9 @@ public class Gui extends Application {
 
       changed = true;
       setButtonsDisabled(false);
+
+      stage.sizeToScene();
+
     }
   }
 
@@ -318,6 +322,73 @@ public class Gui extends Application {
     }
   }
 
+  class ShowConnection implements EventHandler<ActionEvent> {
+    @Override
+    public void handle(ActionEvent event) {
+      if (pickedPlaces.size() < 2) {
+        showError("Du måste markera två platser först.");
+        return;
+      }
+
+      Place p1 = pickedPlaces.get(0);
+      Place p2 = pickedPlaces.get(1);
+
+      // Försök hämta kanten (förbindelsen) mellan p1 och p2
+      Edge<Place> edge = graph.getEdgeBetween(p1, p2);
+
+      if (edge == null) {
+        showError("Det finns ingen förbindelse mellan de valda platserna.");
+        return;
+      }
+
+      // Visa dialog med information om förbindelsen
+      Dialog<Void> dialog = new Dialog<>();
+      dialog.setTitle("Förbindelseinfo");
+      dialog.setHeaderText("Information om förbindelsen");
+
+      Label nameLabel = new Label("Namn:");
+      TextField nameField = new TextField(edge.getName());
+      nameField.setEditable(false);
+
+      Label weightLabel = new Label("Vikt:");
+      TextField weightField = new TextField(String.valueOf(edge.getWeight()));
+      weightField.setEditable(false);
+
+      GridPane grid = new GridPane();
+      grid.setHgap(10);
+      grid.setVgap(10);
+      grid.setPadding(new Insets(20, 150, 10, 10));
+
+      grid.add(nameLabel, 0, 0);
+      grid.add(nameField, 1, 0);
+      grid.add(weightLabel, 0, 1);
+      grid.add(weightField, 1, 1);
+
+      dialog.getDialogPane().setContent(grid);
+      dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+
+      dialog.showAndWait();
+    }
+  }
+
+  class ChangeConnection implements EventHandler<ActionEvent> {
+    @Override
+    public void handle(ActionEvent event) {
+      if (pickedPlaces.size() < 2) {
+        showError("Du måste markera två platser.");
+        return;
+      }
+
+      Place p1 = pickedPlaces.get(0);
+      Place p2 = pickedPlaces.get(1);
+
+      Edge<Place> edge = graph.getEdgeBetween(p1, p2);
+    }
+  }
+
+
+
+
   private void setButtonsDisabled(boolean disabled) {
     newPlaceButton.setDisable(disabled);
     newConnectionButton.setDisable(disabled);
@@ -328,7 +399,7 @@ public class Gui extends Application {
 
   private boolean confirmDiscard() {
     Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
-            "Osparade ändringar finns. Vill du förkasta dem?", ButtonType.OK, ButtonType.CANCEL);
+            "Osparade ändringar finns. Vill du avsluta ändå?", ButtonType.OK, ButtonType.CANCEL);
     alert.setHeaderText(null);
     return alert.showAndWait().filter(btn -> btn == ButtonType.OK).isPresent();
   }
