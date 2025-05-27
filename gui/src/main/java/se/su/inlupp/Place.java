@@ -1,3 +1,8 @@
+// PROG2 VT2025, inlämningsuppgift
+// grupp 75
+// Sama Matloub
+// Yasin Akdeve
+// Petter Rosén pero0033
 package se.su.inlupp;
 
 import javafx.scene.paint.Color;

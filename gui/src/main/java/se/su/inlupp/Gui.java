@@ -1,3 +1,8 @@
+// PROG2 VT2025, inlämningsuppgift
+// grupp 75
+// Sama Matloub
+// Yasin Akdeve
+// Petter Rosén pero0033
 package se.su.inlupp;
 
 import javafx.application.Application;
@@ -107,7 +112,7 @@ public class Gui extends Application {
     center.getChildren().add(imageView);
     root.setCenter(center);
 
-    // === Bildstorlekslyssnare ===
+    //ändra fönstret efter bildens storlek
     imageView.imageProperty().addListener((obs, oldImage, newImage) -> {
       if (newImage != null) {
         Platform.runLater(() -> {
@@ -178,12 +183,12 @@ public class Gui extends Application {
           p.setOnMouseClicked(new PickedPlacesClickHandler());
         }
 
-        // === Rita upp alla förbindelser som linjer ===
+        // Rita linjer
         for (Place from : graph.getNodes()) {
           for (Edge<Place> edge : graph.getEdgesFrom(from)) {
             Place to = edge.getDestination();
 
-            // Undvik att rita varje förbindelse två gånger (en per riktning)
+            // Undvik att rita varje linje två gånger
             if (from.getName().compareTo(to.getName()) < 0) {
               Line line = new Line(from.getX(), from.getY(), to.getX(), to.getY());
               center.getChildren().add(line);
@@ -365,7 +370,7 @@ public class Gui extends Application {
       Place p1 = pickedPlaces.get(0);
       Place p2 = pickedPlaces.get(1);
 
-      // Försök hämta kanten (förbindelsen) mellan p1 och p2
+      // Försök hämta förbindelsen mellan p1 och p2
       Edge<Place> edge = graph.getEdgeBetween(p1, p2);
 
       if (edge == null) {
@@ -373,7 +378,7 @@ public class Gui extends Application {
         return;
       }
 
-      // Visa dialog med information om förbindelsen
+      // Visa dialogfönster med information om förbindelsen
       Dialog<Void> dialog = new Dialog<>();
       dialog.setTitle("Förbindelseinfo");
       dialog.setHeaderText("Information om förbindelsen");
@@ -429,7 +434,7 @@ public class Gui extends Application {
       nameField.setEditable(false);
 
       Label weightLabel = new Label("Ny vikt:");
-      TextField weightField = new TextField(); // Lämna tomt enligt instruktionen
+      TextField weightField = new TextField();
 
       GridPane grid = new GridPane();
       grid.setHgap(10);
