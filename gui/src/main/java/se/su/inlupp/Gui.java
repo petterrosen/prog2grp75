@@ -44,15 +44,12 @@ public class Gui extends Application {
   private final List<Place> pickedPlaces = new ArrayList<>();
   private Graph<Place> graph = new ListGraph<>();
 
-  private Button newPlaceButton;
-  private Button newConnectionButton;
-  private Button showConnectionButton;
-  private Button changeConnectionButton;
-  private Button findPathButton;
+  private Button newPlaceButton, newConnectionButton, showConnectionButton, changeConnectionButton, findPathButton;
 
   @Override
   public void start(Stage primaryStage) {
-    this.stage = primaryStage;
+    //this.stage = primaryStage;
+    stage = primaryStage;
     primaryStage.setTitle("PathFinder");
 
     BorderPane root = new BorderPane();
@@ -72,7 +69,7 @@ public class Gui extends Application {
     saveImage.setOnAction(this::handleSaveImage);
     exit.setOnAction(this::handleExit);
 
-    fileMenu.getItems().addAll(newMap, open, save, saveImage, new SeparatorMenuItem(), exit);
+    fileMenu.getItems().addAll(newMap, open, save, saveImage , exit);
     menuBar.getMenus().add(fileMenu);
 
     newPlaceButton = new Button("New Place");
@@ -133,7 +130,9 @@ public class Gui extends Application {
 
 
   private void handleNewMap(ActionEvent e) {
+
     fileChooser.setTitle("Välj bakgrundsbild");
+    fileChooser.setInitialDirectory(new File("src/main/java/resources"));
     fileChooser.getExtensionFilters().setAll(
             new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif")
     );
@@ -160,6 +159,7 @@ public class Gui extends Application {
     if (changed && !confirmDiscard()) return;
 
     fileChooser.setTitle("Öppna .graph-fil");
+    fileChooser.setInitialDirectory(new File("src/main/java/resources"));
     fileChooser.getExtensionFilters().setAll(new FileChooser.ExtensionFilter("Graph Files", "*.graph"));
     File file = fileChooser.showOpenDialog(stage);
 
@@ -347,7 +347,7 @@ public class Gui extends Application {
           weight = Integer.parseInt(weightText.trim());
           if (weight < 0) throw new NumberFormatException();
         } catch (NumberFormatException ex) {
-          showError("Vikt måste vara ett positivt heltal.");
+          showError("Tid måste vara ett positivt heltal.");
           return;
         }
 
