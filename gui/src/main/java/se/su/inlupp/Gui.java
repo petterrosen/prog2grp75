@@ -103,9 +103,11 @@ public class Gui extends Application {
         newConnectionButton.setOnAction(new NewConnection());
 
         showConnectionButton = new Button("Show Connection");
+        showConnectionButton.setOnAction(new ShowConnection());
         changeConnectionButton = new Button("Change Connection");
+        changeConnectionButton.setOnAction(new ChangeConnection());
         findPathButton = new Button("Find Path");
-        //findPath.setOnAction(new FindPathHandler());
+        findPathButton.setOnAction(new FindPath());
 
         HBox menuBar2 = new HBox(10, findPathButton, showConnectionButton, newPlaceButton, newConnectionButton, changeConnectionButton);
         menuBar2.setAlignment(Pos.CENTER);
