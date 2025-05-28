@@ -101,11 +101,11 @@ public class Gui extends Application {
         newPlaceButton.setOnAction(new NewPlaceHandler());
         newConnectionButton = new Button("New Connection");
         newConnectionButton.setOnAction(new NewConnection());
-
         showConnectionButton = new Button("Show Connection");
         changeConnectionButton = new Button("Change Connection");
+        changeConnectionButton.setOnAction(new ChangeConnection());
         findPathButton = new Button("Find Path");
-        //findPath.setOnAction(new FindPathHandler());
+        findPathButton.setOnAction(new FindPathHandler());
 
         HBox menuBar2 = new HBox(10, findPathButton, showConnectionButton, newPlaceButton, newConnectionButton, changeConnectionButton);
         menuBar2.setAlignment(Pos.CENTER);
@@ -284,8 +284,36 @@ public class Gui extends Application {
                 place.setOnMouseClicked(new PickedPlacesClickHandler());
 
                 center.getChildren().add(place);
-
             }
+
+            // Test
+            // 2. Läs återstående rader som är förbindelser
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(";");
+                if (parts.length != 4) continue;
+
+                String fromName = parts[0];
+                String toName = parts[1];
+                String connectionName = parts[2];
+                int weight = Integer.parseInt(parts[3]);
+
+                Place from = findPlaceByName(fromName);
+                Place to = findPlaceByName(toName);
+
+                if (from != null && to != null &&
+                        graph.getEdgeBetween(from, to) == null &&
+                        graph.getEdgeBetween(to, from) == null) {
+
+                    graph.connect(from, to, connectionName, weight);
+
+                    // Rita linje
+                    Line connLine = new Line(from.getX(), from.getY(), to.getX(), to.getY());
+                    center.getChildren().add(connLine);
+                }
+            }
+
             setButtonsDisabled(false);
 
             changed = true;
@@ -740,7 +768,7 @@ public class Gui extends Application {
         }
     }
 
-    class FindPath implements EventHandler<ActionEvent> {
+    class FindPathHandler implements EventHandler<ActionEvent> {
         private final List<Line> pathLines = new ArrayList<>();
 
         @Override
