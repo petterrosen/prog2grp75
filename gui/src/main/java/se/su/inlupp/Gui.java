@@ -28,9 +28,7 @@ import javafx.util.Callback;
 import javafx.util.Pair;
 
 import javax.imageio.ImageIO;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.util.*;
 
 public class Gui extends Application {
@@ -40,6 +38,7 @@ public class Gui extends Application {
   private final Pane center = new Pane();
   private File currentGraphFile;
   private boolean changed = false;
+  private File imageFile;
 
   private final List<Place> places = new ArrayList<>();
   private final List<Place> pickedPlaces = new ArrayList<>();
@@ -64,11 +63,11 @@ public class Gui extends Application {
     MenuItem saveImage = new MenuItem("Save Image");
     MenuItem exit = new MenuItem("Exit");
 
-    newMap.setOnAction(this::handleNewMap);
-    open.setOnAction(this::handleOpen);
-    save.setOnAction(this::handleSave);
-    saveImage.setOnAction(this::handleSaveImage);
-    exit.setOnAction(this::handleExit);
+    newMap.setOnAction(new handleNewMap());
+    open.setOnAction(new OpenHandler());
+    save.setOnAction(new handleSave());
+    saveImage.setOnAction(new handleSaveImage());
+    exit.setOnAction(new handleExit());
 
     fileMenu.getItems().addAll(newMap, open, save, saveImage , exit);
     menuBar.getMenus().add(fileMenu);
@@ -130,33 +129,35 @@ public class Gui extends Application {
   }
 
 
-  private void handleNewMap(ActionEvent e) {
+  class handleNewMap implements EventHandler<ActionEvent> {
+    public void handle(ActionEvent event) {
 
-    fileChooser.setTitle("Välj bakgrundsbild");
-    fileChooser.setInitialDirectory(new File("src/main/java/resources"));
-    fileChooser.getExtensionFilters().setAll(
-            new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif")
-    );
-    File file = fileChooser.showOpenDialog(stage);
-    if (file != null) {
-      Image img = new Image(file.toURI().toString());
-      imageView.setImage(img);
-      imageView.setUserData(file.toURI().toString());
+      fileChooser.setTitle("Välj bakgrundsbild");
+      fileChooser.setInitialDirectory(new File("src/main/java/resources"));
+      fileChooser.getExtensionFilters().setAll(
+              new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif")
+      );
+      File file = fileChooser.showOpenDialog(stage);
+      if (file != null) {
+        Image img = new Image(file.toURI().toString());
+        imageView.setImage(img);
+        imageView.setUserData(file.toURI().toString());
 
 
-      places.clear();
-      graph = new ListGraph<>();
-      center.getChildren().clear();
-      center.getChildren().add(imageView);
-      pickedPlaces.clear();
+        places.clear();
+        graph = new ListGraph<>();
+        center.getChildren().clear();
+        center.getChildren().add(imageView);
+        pickedPlaces.clear();
 
-      changed = true;
-      setButtonsDisabled(false);
+        changed = true;
+        setButtonsDisabled(false);
+      }
     }
   }
 
 
-  private void handleOpen(ActionEvent e) {
+  /*private void handleOpen(ActionEvent e) {
     if (changed && !confirmDiscard()) return;
 
     fileChooser.setTitle("Öppna .graph-fil");
@@ -217,38 +218,135 @@ public class Gui extends Application {
         showError("Fel vid inläsning: " + ex.getMessage());
       }
     }
+  } */
+
+  class OpenHandler implements EventHandler<ActionEvent> {
+    public void handle(ActionEvent event) {
+      if (changed && !confirmDiscard()) return;
+
+      FileChooser fileChooser = new FileChooser();
+      fileChooser.setTitle("Open a graf-file");
+      fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Graph File", "*.graph"));
+      // Startkatalogsmapp där bild ska laddas ifrån
+      fileChooser.setInitialDirectory(new File("src/main/resources"));
+      // Visa fildialogfönstret
+      File selectedFile = fileChooser.showOpenDialog(stage);
+      if (selectedFile != null) {
+        System.out.println("Path is : " + selectedFile.getAbsolutePath());
+        open(selectedFile.getAbsolutePath()); //returnerar en sträng med sökvärden
+        //open("europa.gif"); //returnerar en sträng med sökvärden
+        changed = false;
+      }
+    }
   }
 
-  private void handleSave(ActionEvent e) {
-    fileChooser.setTitle("Spara .graph-fil");
-    fileChooser.getExtensionFilters().setAll(new FileChooser.ExtensionFilter("Graph Files", "*.graph"));
-    File file = fileChooser.showSaveDialog(stage);
-    if (file != null) {
-      try (PrintWriter writer = new PrintWriter(file)) {
-        String imageUrl = (String) imageView.getUserData();
-        writer.println(imageUrl);
+  private void open(String fileName) {
+    try {
 
-        for (Place p : places) {
-          writer.printf("%s;%.1f;%.1f%n", p.getName(), p.getX(), p.getY());
-        }
+      BufferedReader reader = new BufferedReader(new FileReader(fileName));
 
-        Set<String> savedEdges = new HashSet<>();
-        for (Place p1 : places) {
-          for (Edge<Place> edge : graph.getEdgesFrom(p1)) {
-            Place p2 = edge.getDestination();
-            String id = p1.getName() + "-" + p2.getName();
-            String reverseId = p2.getName() + "-" + p1.getName();
-            if (!savedEdges.contains(id) && !savedEdges.contains(reverseId)) {
-              writer.printf("%s;%s;%s;%d%n", p1.getName(), p2.getName(), edge.getName(), edge.getWeight());
-              savedEdges.add(id);
+      //Första raden i filen för att ladda kartbilden (krav enligt uppgiften)
+      String imagePath = reader.readLine();
+      System.out.println("imagepath " + imagePath);
+
+      if (imagePath.startsWith("file:")) {
+        imagePath = imagePath.substring(5);
+      }
+
+      // Sökväg till .graph-filen
+      File graphFile = new File(fileName);
+      File imageDir = graphFile.getParentFile();
+      imageFile = new File(imageDir, imagePath);
+
+      if (imagePath == null || imagePath.isEmpty()) {
+        throw new IOException("File not found!");
+      }
+
+      //imageFile = new File(imagePath);
+      Image image = new Image(imageFile.toURI().toString());
+
+      imageView.setImage(image);
+      center.setPrefSize(image.getWidth(), image.getHeight());
+      stage.setWidth(image.getWidth() + 16);
+      stage.setHeight(image.getHeight() + 150);
+      stage.sizeToScene();
+
+      //Rensar Place-listan över tidigare platser
+      places.clear();
+      //Skapa en ny tom graf varje gång man öppnar/laddar en ny fil
+      graph = new ListGraph<>();
+      //Lägg tillbaka kartbilden igen
+      center.getChildren().setAll(imageView);
+
+      // Läs in platser från graph-filen
+      String placeLine = reader.readLine();
+      String[] tokens = placeLine.split(";");
+      for (int i = 0; i < tokens.length; i = i+3) {
+        String name = tokens[i];
+        double x = Double.parseDouble(tokens[i + 1]);
+        double y = Double.parseDouble(tokens[i + 2]);
+
+        // Skapa och lägg till place med X- och Y-kordinator
+        Place place = new Place(name, x, y);
+        places.add(place);
+        graph.add(place);
+
+        //Lägger till Clickhantering för platserna som laddas från graph-filen.
+        place.setOnMouseClicked(new PickedPlacesClickHandler());
+
+        //Circle dot = new Circle(x, y, 8, Color.BLUE);
+        //Text label = new Text(x + 10, y, name);
+        center.getChildren().add(place);
+
+      }
+      setButtonsDisabled(false);
+
+      changed = true;
+
+    } catch (FileNotFoundException e) {
+      Alert alert = new Alert(Alert.AlertType.ERROR, "Can't open file " + fileName + "!");
+      alert.showAndWait();
+    } catch (IOException e) {
+      Alert alert = new Alert(Alert.AlertType.ERROR, "IO-error " + e.getMessage());
+      alert.showAndWait();
+    }
+  }
+//=============================================
+
+  class handleSave implements EventHandler<ActionEvent> {
+    public void handle(ActionEvent event) {
+
+
+      fileChooser.setTitle("Spara .graph-fil");
+      fileChooser.getExtensionFilters().setAll(new FileChooser.ExtensionFilter("Graph Files", "*.graph"));
+      File file = fileChooser.showSaveDialog(stage);
+      if (file != null) {
+        try (PrintWriter writer = new PrintWriter(file)) {
+          String imageUrl = (String) imageView.getUserData();
+          writer.println(imageUrl);
+
+          for (Place p : places) {
+            writer.printf("%s;%.1f;%.1f%n", p.getName(), p.getX(), p.getY());
+          }
+
+          Set<String> savedEdges = new HashSet<>();
+          for (Place p1 : places) {
+            for (Edge<Place> edge : graph.getEdgesFrom(p1)) {
+              Place p2 = edge.getDestination();
+              String id = p1.getName() + "-" + p2.getName();
+              String reverseId = p2.getName() + "-" + p1.getName();
+              if (!savedEdges.contains(id) && !savedEdges.contains(reverseId)) {
+                writer.printf("%s;%s;%s;%d%n", p1.getName(), p2.getName(), edge.getName(), edge.getWeight());
+                savedEdges.add(id);
+              }
             }
           }
-        }
 
-        changed = false;
-        currentGraphFile = file;
-      } catch (IOException ex) {
-        showError("Kunde inte spara fil: " + ex.getMessage());
+          changed = false;
+          currentGraphFile = file;
+        } catch (IOException ex) {
+          showError("Kunde inte spara fil: " + ex.getMessage());
+        }
       }
     }
   }
@@ -260,20 +358,25 @@ public class Gui extends Application {
     return null;
   }
 
-  private void handleSaveImage(ActionEvent e) {
-    WritableImage snapshot = center.snapshot(new SnapshotParameters(), null);
-    File file = new File("src/main/java/se/su/inlupp/capture.png");
-    try {
-      ImageIO.write(SwingFXUtils.fromFXImage(snapshot, null), "png", file);
-      showInfo("Skärmbild sparad som capture.png.");
-    } catch (IOException ex) {
-      showError("Kunde inte spara bild: " + ex.getMessage());
+  class handleSaveImage implements EventHandler<ActionEvent> {
+    public void handle (ActionEvent event){
+
+      WritableImage snapshot = center.snapshot(new SnapshotParameters(), null);
+      File file = new File("src/main/java/se/su/inlupp/capture.png");
+      try {
+        ImageIO.write(SwingFXUtils.fromFXImage(snapshot, null), "png", file);
+        showInfo("Skärmbild sparad som capture.png.");
+      } catch (IOException ex) {
+        showError("Kunde inte spara bild: " + ex.getMessage());
+      }
     }
   }
 
-  private void handleExit(ActionEvent e) {
-    if (!changed || confirmDiscard()) {
-      stage.close();
+  class handleExit implements EventHandler<ActionEvent> {
+    public void handle(ActionEvent event) {
+      if (!changed || confirmDiscard()) {
+        stage.close();
+      }
     }
   }
 
