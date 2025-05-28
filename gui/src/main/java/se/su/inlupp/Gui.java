@@ -30,6 +30,7 @@ import javafx.util.Pair;
 import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.*;
 
 public class Gui extends Application {
@@ -159,17 +160,20 @@ public class Gui extends Application {
     if (changed && !confirmDiscard()) return;
 
     fileChooser.setTitle("Öppna .graph-fil");
-    fileChooser.setInitialDirectory(new File("src/main/java/resources"));
     fileChooser.getExtensionFilters().setAll(new FileChooser.ExtensionFilter("Graph Files", "*.graph"));
     File file = fileChooser.showOpenDialog(stage);
-
     if (file != null) {
       places.clear();
       graph = new ListGraph<>();
       pickedPlaces.clear();
 
-      String imageUrl = GraphIO.loadGraphFile(file, places, graph);
-      if (imageUrl != null) {
+      try (Scanner scanner = new Scanner(file)) {
+        if (!scanner.hasNextLine()) {
+          showError("Filen är tom.");
+          return;
+        }
+
+        String imageUrl = scanner.nextLine();
         imageView.setImage(new Image(imageUrl));
         imageView.setUserData(imageUrl);
         center.setPrefSize(imageView.getImage().getWidth(), imageView.getImage().getHeight());
@@ -177,31 +181,40 @@ public class Gui extends Application {
         center.getChildren().clear();
         center.getChildren().add(imageView);
 
-        // Lägg till alla platser och koppla klickhantering
-        for (Place p : places) {
-          center.getChildren().add(p);
-          p.setOnMouseClicked(new PickedPlacesClickHandler());
-        }
+        while (scanner.hasNextLine()) {
+          String line = scanner.nextLine();
+          String[] parts = line.split(";");
+          if (parts.length == 3) {
+            // Place
+            String name = parts[0];
+            double x = Double.parseDouble(parts[1]);
+            double y = Double.parseDouble(parts[2]);
+            Place p = new Place(name, x, y);
+            places.add(p);
+            graph.add(p);
+            center.getChildren().add(p);
+            p.setOnMouseClicked(new PickedPlacesClickHandler());
+          } else if (parts.length == 4) {
+            // Edge
+            String fromName = parts[0];
+            String toName = parts[1];
+            String edgeName = parts[2];
+            int weight = Integer.parseInt(parts[3]);
 
-        // Rita linjer
-        for (Place from : graph.getNodes()) {
-          for (Edge<Place> edge : graph.getEdgesFrom(from)) {
-            Place to = edge.getDestination();
-
-            // Undvik att rita varje linje två gånger
-            if (from.getName().compareTo(to.getName()) < 0) {
-              Line line = new Line(from.getX(), from.getY(), to.getX(), to.getY());
-              center.getChildren().add(line);
+            Place from = findPlaceByName(fromName);
+            Place to = findPlaceByName(toName);
+            if (from != null && to != null) {
+              graph.connect(from, to, edgeName, weight);
+              center.getChildren().add(new Line(from.getX(), from.getY(), to.getX(), to.getY()));
             }
           }
         }
 
-        changed = true;
+        changed = false;
         currentGraphFile = file;
         setButtonsDisabled(false);
-
-        center.setPrefSize(imageView.getImage().getWidth(), imageView.getImage().getHeight());
-        stage.sizeToScene();
+      } catch (Exception ex) {
+        showError("Fel vid inläsning: " + ex.getMessage());
       }
     }
   }
@@ -211,16 +224,45 @@ public class Gui extends Application {
     fileChooser.getExtensionFilters().setAll(new FileChooser.ExtensionFilter("Graph Files", "*.graph"));
     File file = fileChooser.showSaveDialog(stage);
     if (file != null) {
-      String imageUrl = (String) imageView.getUserData();
-      GraphIO.saveGraphFile(file, imageUrl, places, graph);
-      changed = false;
-      currentGraphFile = file;
+      try (PrintWriter writer = new PrintWriter(file)) {
+        String imageUrl = (String) imageView.getUserData();
+        writer.println(imageUrl);
+
+        for (Place p : places) {
+          writer.printf("%s;%.1f;%.1f%n", p.getName(), p.getX(), p.getY());
+        }
+
+        Set<String> savedEdges = new HashSet<>();
+        for (Place p1 : places) {
+          for (Edge<Place> edge : graph.getEdgesFrom(p1)) {
+            Place p2 = edge.getDestination();
+            String id = p1.getName() + "-" + p2.getName();
+            String reverseId = p2.getName() + "-" + p1.getName();
+            if (!savedEdges.contains(id) && !savedEdges.contains(reverseId)) {
+              writer.printf("%s;%s;%s;%d%n", p1.getName(), p2.getName(), edge.getName(), edge.getWeight());
+              savedEdges.add(id);
+            }
+          }
+        }
+
+        changed = false;
+        currentGraphFile = file;
+      } catch (IOException ex) {
+        showError("Kunde inte spara fil: " + ex.getMessage());
+      }
     }
+  }
+
+  private Place findPlaceByName(String name) {
+    for (Place p : places) {
+      if (p.getName().equals(name)) return p;
+    }
+    return null;
   }
 
   private void handleSaveImage(ActionEvent e) {
     WritableImage snapshot = center.snapshot(new SnapshotParameters(), null);
-    File file = new File("capture.png");
+    File file = new File("src/main/java/se/su/inlupp/capture.png");
     try {
       ImageIO.write(SwingFXUtils.fromFXImage(snapshot, null), "png", file);
       showInfo("Skärmbild sparad som capture.png.");
