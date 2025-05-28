@@ -32,6 +32,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileNotFoundException;
+
+
 public class Gui extends Application {
   private Stage stage;
   private final FileChooser fileChooser = new FileChooser();
@@ -50,9 +55,12 @@ public class Gui extends Application {
   private Button changeConnectionButton;
   private Button findPathButton;
 
+  // I klassen Gui:
+  private File imageFile;
+
   @Override
   public void start(Stage primaryStage) {
-    this.stage = primaryStage;
+    stage = primaryStage;
     primaryStage.setTitle("PathFinder");
 
     BorderPane root = new BorderPane();
@@ -66,11 +74,11 @@ public class Gui extends Application {
     MenuItem saveImage = new MenuItem("Save Image");
     MenuItem exit = new MenuItem("Exit");
 
-    newMap.setOnAction(this::handleNewMap);
-    open.setOnAction(this::handleOpen);
-    save.setOnAction(this::handleSave);
-    saveImage.setOnAction(this::handleSaveImage);
-    exit.setOnAction(this::handleExit);
+    newMap.setOnAction(new handleNewMap());
+    open.setOnAction(new handleOpen());
+    //save.setOnAction(new handleSave());
+    //saveImage.setOnAction(new handleSaveImage());
+    //exit.setOnAction(new handleExit());
 
     fileMenu.getItems().addAll(newMap, open, save, saveImage, new SeparatorMenuItem(), exit);
     menuBar.getMenus().add(fileMenu);
@@ -132,30 +140,185 @@ public class Gui extends Application {
   }
 
 
-  private void handleNewMap(ActionEvent e) {
-    fileChooser.setTitle("Välj bakgrundsbild");
-    fileChooser.getExtensionFilters().setAll(
-            new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif")
-    );
-    File file = fileChooser.showOpenDialog(stage);
-    if (file != null) {
-      Image img = new Image(file.toURI().toString());
-      imageView.setImage(img);
-      imageView.setUserData(file.toURI().toString());
+  class handleNewMap implements EventHandler<ActionEvent> {
+    //private void handleNewMap(ActionEvent e) {
+    @Override
+    public void handle(ActionEvent actionEvent) {
+      fileChooser.setTitle("Välj bakgrundsbild");
+      // Startkatalogsmapp där bild ska laddas ifrån
+      fileChooser.setInitialDirectory(new File("src/main/resources"));
+      fileChooser.getExtensionFilters().setAll(
+              new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif")
+      );
+      File file = fileChooser.showOpenDialog(stage);
+
+      if (file != null) {
+        Image img = new Image(file.toURI().toString());
+        imageView.setImage(img);
+        imageView.setUserData(file.toURI().toString());
 
 
-      places.clear();
-      graph = new ListGraph<>();
-      center.getChildren().clear();
-      center.getChildren().add(imageView);
-      pickedPlaces.clear();
+        places.clear();
+        graph = new ListGraph<>();
+        center.getChildren().clear();
+        center.getChildren().add(imageView);
+        pickedPlaces.clear();
 
-      changed = true;
-      setButtonsDisabled(false);
+        changed = true;
+        setButtonsDisabled(false);
+      }
     }
   }
 
+  private void open(String fileName) {
+    try {
 
+      BufferedReader reader = new BufferedReader(new FileReader(fileName));
+
+      //Första raden i filen för att ladda kartbilden (krav enligt uppgiften)
+      String imagePath = reader.readLine();
+
+      imagePath = reader.readLine();
+      if (imagePath == null || imagePath.isEmpty()) {
+        throw new IOException("File not found!");
+      }
+
+      imageFile = new File(imagePath);
+
+            /*if (imagePath.startsWith("file:")) {
+                imagePath = imagePath.substring(5);
+            }*/
+
+      imageFile = new File(imagePath);
+      Image image = new Image(imageFile.toURI().toString());
+
+      imageView.setImage(image);
+      center.setPrefSize(image.getWidth(), image.getHeight());
+      stage.setWidth(image.getWidth() + 16);
+      stage.setHeight(image.getHeight() + 150);
+      stage.sizeToScene();
+
+      //Rensar Place-listan över tidigare platser
+      places.clear();
+      //Skapa en ny tom graf varje gång man öppnar/laddar en ny fil
+      graph = new ListGraph<>();
+      //Lägg tillbaka kartbilden igen
+      center.getChildren().setAll(imageView);
+
+      // Läs in platser från graph-filen
+      String placeLine = reader.readLine();
+      String[] tokens = placeLine.split(";");
+      for (int i = 0; i < tokens.length; i = i+3) {
+        String name = tokens[i];
+        double x = Double.parseDouble(tokens[i + 1]);
+        double y = Double.parseDouble(tokens[i + 2]);
+
+        // Skapa och lägg till place med X- och Y-kordinator
+        Place place = new Place(name, x, y);
+        places.add(place);
+        graph.add(place);
+
+        //Lägger till Clickhantering för platserna som laddas från graph-filen.
+        place.setOnMouseClicked(new PickedPlacesClickHandler());
+
+        //Circle dot = new Circle(x, y, 8, Color.BLUE);
+        //Text label = new Text(x + 10, y, name);
+        center.getChildren().add(place);
+
+      }
+
+    } catch (FileNotFoundException e) {
+      Alert alert = new Alert(Alert.AlertType.ERROR, "Can't open file " + fileName + "!");
+      alert.showAndWait();
+    } catch (IOException e) {
+      Alert alert = new Alert(Alert.AlertType.ERROR, "IO-error " + e.getMessage());
+      alert.showAndWait();
+    }
+  }
+
+  /*
+  class handleOpen implements EventHandler<ActionEvent> {
+    public void handle(ActionEvent event) {
+      if (changed) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Unsaved changes, exit anyway?");
+        alert.setTitle("Warning!");
+        alert.showAndWait();
+        //Hämtar vilket knappval användaren gjort. Om ej OK avbryts metoden
+        if (alert.getResult() != ButtonType.OK) {
+          return;
+        }
+      }
+
+      FileChooser fileChooser = new FileChooser();
+      fileChooser.setTitle("Open a graf-file");
+      fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Graph File", "*.graph"));
+      // Startkatalogsmapp där bild ska laddas ifrån
+      fileChooser.setInitialDirectory(new File("src/main/resources"));
+      // Visa fildialogfönstret
+      File selectedFile = fileChooser.showOpenDialog(stage);
+      if (selectedFile != null) {
+        open(selectedFile.getAbsolutePath()); //returnerar en sträng med sökvärden
+        changed = false;
+      }
+    }
+  }
+  */
+
+  class handleOpen implements EventHandler<ActionEvent> {
+    @Override
+    public void handle(ActionEvent actionEvent) {
+      if (changed && !confirmDiscard())
+        return;
+
+      fileChooser.setTitle("Öppna .graph-fil");
+      fileChooser.getExtensionFilters().setAll(new FileChooser.ExtensionFilter("Graph Files", "*.graph"));
+      File file = fileChooser.showOpenDialog(stage);
+
+      if (file != null) {
+        places.clear();
+        graph = new ListGraph<>();
+        pickedPlaces.clear();
+
+        String imageUrl = GraphIO.loadGraphFile(file, places, graph);
+        if (imageUrl != null) {
+          imageView.setImage(new Image(imageUrl));
+          imageView.setUserData(imageUrl);
+          center.setPrefSize(imageView.getImage().getWidth(), imageView.getImage().getHeight());
+
+          center.getChildren().clear();
+          center.getChildren().add(imageView);
+
+          // Lägg till alla platser och koppla klickhantering
+          for (Place p : places) {
+            center.getChildren().add(p);
+            p.setOnMouseClicked(new PickedPlacesClickHandler());
+          }
+
+          // Rita linjer
+          for (Place from : graph.getNodes()) {
+            for (Edge<Place> edge : graph.getEdgesFrom(from)) {
+              Place to = edge.getDestination();
+
+              // Undvik att rita varje linje två gånger
+              if (from.getName().compareTo(to.getName()) < 0) {
+                Line line = new Line(from.getX(), from.getY(), to.getX(), to.getY());
+                center.getChildren().add(line);
+              }
+            }
+          }
+
+          changed = true;
+          currentGraphFile = file;
+          setButtonsDisabled(false);
+
+          center.setPrefSize(imageView.getImage().getWidth(), imageView.getImage().getHeight());
+          stage.sizeToScene();
+        }
+      }
+    }
+  }
+
+  /*
   private void handleOpen(ActionEvent e) {
     if (changed && !confirmDiscard()) return;
 
@@ -205,6 +368,7 @@ public class Gui extends Application {
       }
     }
   }
+*/
 
   private void handleSave(ActionEvent e) {
     fileChooser.setTitle("Spara .graph-fil");
