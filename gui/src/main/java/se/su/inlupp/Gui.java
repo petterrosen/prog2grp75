@@ -245,7 +245,7 @@ public class Gui extends Application {
 
       BufferedReader reader = new BufferedReader(new FileReader(fileName));
 
-      //Första raden i filen för att ladda kartbilden (krav enligt uppgiften)
+      //Första raden i filen för att ladda kartbilden
       String imagePath = reader.readLine();
       System.out.println("imagepath " + imagePath);
 
