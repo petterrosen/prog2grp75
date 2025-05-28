@@ -287,6 +287,36 @@ public class Gui extends Application {
 
                 center.getChildren().add(place);
 
+                //ska läsa in förbindelser
+                while ((placeLine = reader.readLine()) != null) {
+                    if (placeLine.startsWith()) {
+                        String[] parts = placeLine.substring(6).split(",");
+                        String name = parts[0];
+                        double x = Double.parseDouble(parts[1]);
+                        double y = Double.parseDouble(parts[2]);
+
+                        Place p = new Place(name, x, y);
+                        places.add(p);
+                        graph.add(p);
+                        nameToPlace.put(name, p);
+
+                    } else if (line.startsWith("EDGE:")) {
+                        String[] parts = line.substring(5).split(",");
+                        String fromName = parts[0];
+                        String toName = parts[1];
+                        String edgeName = parts[2];
+                        int weight = Integer.parseInt(parts[3]);
+
+                        Place from = nameToPlace.get(fromName);
+                        Place to = nameToPlace.get(toName);
+
+                        if (from != null && to != null) {
+                            graph.connect(from, to, edgeName, weight);
+                        }
+                    }
+                }
+
+
             }
             setButtonsDisabled(false);
 
