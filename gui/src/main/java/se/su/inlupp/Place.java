@@ -1,3 +1,9 @@
+// PROG2 VT2025, inlämningsuppgift del 2
+// grupp 75
+// Sama Matloub sama3201
+// Yasin Akdeve
+// Petter Rosén pero0033
+
 package se.su.inlupp;
 
 import javafx.event.EventHandler;
@@ -5,24 +11,18 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 
-//Places innehåller noderna (utan kopplingar)
+//Places innehåller noder utan kopplingar
 public class Place extends Circle {
     private final String name;
-    //private final double x; no need
-    //private final double y;
-
     private boolean selected = false;
 
     public Place(String name, double x, double y){
         this.name = name;
-        //this.x = x; No need
-        //this.y = y;
-        setCenterX(x);
+          setCenterX(x);
         setCenterY(y);
 
         setRadius(5);
         setFill(Color.BLUE);
-        //addEventHandler(MouseEvent.MOUSE_CLICKED, new ClickHandler());
     }
 
     public String getName() {
@@ -38,17 +38,6 @@ public class Place extends Circle {
     }
     public boolean isSelected() { return selected; }
 
-    /*public void setSelected(boolean selected) {
-        if (this.selected == selected){
-            //selected = true;
-            setFill(Color.RED);
-        }
-        else{
-            //selected =false;
-            setFill(Color.BLUE);
-        }
-    }*/
-
     public void setSelected(boolean selected) {
         this.selected = selected;
         if (selected) {
@@ -57,17 +46,6 @@ public class Place extends Circle {
             setFill(Color.BLUE);
         }
     }
-
-    /*class ClickHandler implements EventHandler<MouseEvent> {
-        @Override
-        public void handle(MouseEvent event){
-            if (!selected){
-                setSelected(true);
-            } else {
-                setSelected(false);
-            }
-        }
-    }*/
 
     @Override
     public String toString() {

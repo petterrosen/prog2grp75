@@ -1,3 +1,9 @@
+// PROG2 VT2025, inlämningsuppgift del 2
+// grupp 75
+// Sama Matloub sama3201
+// Yasin Akdeve
+// Petter Rosén pero0033
+
 package se.su.inlupp;
 
 import javafx.application.Application;
@@ -11,7 +17,6 @@ import javafx.scene.SnapshotParameters;
 import javafx.scene.control.*;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.scene.paint.Color;
 import javafx.geometry.Insets;
@@ -21,15 +26,12 @@ import javafx.scene.layout.*;
 import java.util.List;
 import java.util.ArrayList;
 import java.io.*;
-
 import javafx.stage.FileChooser;
 import javafx.application.Platform;
 import javafx.stage.WindowEvent;
 import javafx.util.Callback;
 import javafx.util.Pair;
-
 import javafx.scene.shape.Line;
-
 import javax.imageio.ImageIO;
 import java.io.IOException;
 import java.util.Optional;
@@ -39,33 +41,25 @@ public class Gui extends Application {
     private final FileChooser fileChooser = new FileChooser();
     private Button findPathButton, showConnectionButton, newPlaceButton, newConnectionButton, changeConnectionButton;
     private boolean changed = false;
-    private File imageFile;   //SKiljer sig från gamla koden
-    //private Graph<String> graph;
+    private File imageFile;
+    //Skapar en tom graf där varje nod är ett Place-objekt, för att sedan där kunna lägga till kopplingar/kanter
     private Graph<Place> graph = new ListGraph<>();
     //Lagra varje enskild place med namn och X- och Y-kordinator. Places innehåller noder utan kopplingar.
     private final List<Place> places = new ArrayList<>();
-
     private final ImageView imageView = new ImageView();
-    private final Pane center = new Pane(); //Görs till instansvariabel för att kunna vara åtkomlig från inreklasser samt metoder.
-
+    private final Pane center = new Pane();
     private final List<Place> pickedPlaces = new ArrayList<>();
 
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("PathFinder");
         BorderPane root = new BorderPane();
-
         stage = primaryStage;
 
-        //Skapa en ny tom graf varje gång man öppnar/laddar en ny fil
-        //graph = new ListGraph<>();
-        //Skapar en tom graf där varje nod är ett Place-objekt, för att sedan där kunna lägga till kopplingar/kanter
-        //Graph<Place> graph = new ListGraph<>();
-        //Graph<String> graph = new ListGraph<String>();
         String javaVersion = System.getProperty("java.version");
         String javafxVersion = System.getProperty("javafx.version");
 
-        //====== Menyn File i top-BorderPane ======
+        // ====== Menyn File i top-BorderPane ======
         VBox vbox = new VBox();
         MenuBar menuBar1 = new MenuBar();
         FlowPane controls = new FlowPane();
@@ -92,7 +86,7 @@ public class Gui extends Application {
         exit.setOnAction(new ExitHandler());
 
         menuBar1.getMenus().addAll(fileMenu);
-        menuBar1.setBackground(Background.fill(Color.LIGHTYELLOW));
+        menuBar1.setBackground(Background.fill(Color.LIGHTBLUE));
 
         root.setTop(vbox);
 
@@ -112,11 +106,7 @@ public class Gui extends Application {
         menuBar2.setPadding(new Insets(30));
 
         // Inaktivera knapparna i HBox-menu vid start
-        findPathButton.setDisable(true);
-        showConnectionButton.setDisable(true);
-        newPlaceButton.setDisable(true);
-        newConnectionButton.setDisable(true);
-        changeConnectionButton.setDisable(true);
+        setButtonsDisabled(true);
 
         root.setBottom(menuBar2);
 
@@ -133,12 +123,11 @@ public class Gui extends Application {
         primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
             @Override
             public void handle(WindowEvent event) {
-                if (!ExitOk()) {
+                if (!confirmDiscard()) {
                     event.consume(); // Avbryt stängning
                 }
             }
         });
-
     }
 
     private void setButtonsDisabled(boolean disabled) {
@@ -149,8 +138,7 @@ public class Gui extends Application {
         findPathButton.setDisable(disabled);
     }
 
-    // Ladda upp New map-bild ===== Annonym inreklass
-
+    //  ============== 4.1 Menyn File ==============
     private void manageMapImage(File selectedFile) {
         try {
             // Spara filen så att Save vet vilken bild som används
@@ -170,7 +158,7 @@ public class Gui extends Application {
             imageView.setImage(image);
 
             // Testar
-            imageView.setMouseTransparent(true);
+            //imageView.setMouseTransparent(true);
 
             imageView.setPreserveRatio(true);
 
@@ -180,11 +168,7 @@ public class Gui extends Application {
             stage.sizeToScene();
 
             // Aktivera knappar
-            findPathButton.setDisable(false);
-            showConnectionButton.setDisable(false);
-            newPlaceButton.setDisable(false);
-            newConnectionButton.setDisable(false);
-            changeConnectionButton.setDisable(false);
+            setButtonsDisabled(false);
 
             changed = true;
 
@@ -197,27 +181,18 @@ public class Gui extends Application {
     class NewMapHandler implements EventHandler<ActionEvent> {
         @Override
         public void handle(ActionEvent actionEvent) {
-            if (changed) {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Unsaved changes, exit anyway?", ButtonType.OK, ButtonType.CANCEL);
-                alert.setTitle("Warning!");
-                alert.showAndWait();
-
-                if (alert.getResult() != ButtonType.OK) {
-                    return;
-                }
-            }
+            if (changed && !confirmDiscard())
+                return;
 
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("Choose a map picture");
             // Startkatalogsmapp där bild ska laddas ifrån
             fileChooser.setInitialDirectory(new File("src/main/resources"));
 
-            //System.out.println("Current " + System.getProperty("user.dir"));
+            //System.out.println("Current " + System.getProperty("user.dir")); <== Har använts vid felsökning.
             // Filtyper att kunna välja emellan
-            fileChooser.getExtensionFilters().addAll(
-                    new FileChooser.ExtensionFilter("GIF image", "*.gif"),
-                    new FileChooser.ExtensionFilter("JPEG image", "*.jpg"),
-                    new FileChooser.ExtensionFilter("PNG image", "*.png")
+            fileChooser.getExtensionFilters().setAll(
+                    new FileChooser.ExtensionFilter("Image Files", "*.gif", "*.jpg", "*.jpeg", "*.png")
             );
 
             // Visa fildialogfönstret
@@ -286,8 +261,7 @@ public class Gui extends Application {
                 center.getChildren().add(place);
             }
 
-            // Test
-            // 2. Läs återstående rader som är förbindelser
+            // 2. Läs återstående rader i filen, förbindelserna.
 
             String line;
             while ((line = reader.readLine()) != null) {
@@ -334,18 +308,7 @@ public class Gui extends Application {
 
     class OpenHandler implements EventHandler<ActionEvent> {
         public void handle(ActionEvent event) {
-            /*if (changed && !confirmDiscard())
-                return;*/
-
-            if (changed) {
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Unsaved changes, exit anyway?");
-                alert.setTitle("Warning!");
-                alert.showAndWait();
-                //Hämtar vilket knappval användaren gjort. Om ej OK avbryts metoden
-                if (alert.getResult() != ButtonType.OK) {
-                    return;
-                }
-            }
+            if (changed && !confirmDiscard()) return;
 
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("Open a graf-file");
@@ -363,11 +326,10 @@ public class Gui extends Application {
         }
     }
 
-    //Ska spara info om kartan och grafen (noder och förbindelser)
+    // ===== Sparar info om kartan och grafen med noder och förbindelser =====
     private void save(String fileName) {
-
         try {
-            //Kontroll att det finns något att spara
+            // Kontroll att det finns något att spara
             if (imageFile == null) {
                 Alert alert = new Alert(Alert.AlertType.ERROR, "No image selected!");
                 alert.setHeaderText("Save Error");
@@ -376,17 +338,6 @@ public class Gui extends Application {
             }
 
             BufferedWriter writer = new BufferedWriter(new FileWriter(fileName));
-            // Skriver bildsökvägen först
-            //writer.write(imageFile.getPath());
-
-            /*if (imageFile != null) {
-                writer.write(imageFile.toURI().toString());
-            } else {
-                writer.write("There is no image");
-            }*/
-
-            //Test
-            System.out.println("WRITING IMAGE PATH: file:" + imageFile.getName());
 
             writer.write("file:" + imageFile.getName());
             writer.newLine();
@@ -400,7 +351,7 @@ public class Gui extends Application {
                 writer.newLine();
             }*/
 
-            //=========Skriv alla noder=======
+            // ====== Skriv alla noder =====
             List<String> nodes = new ArrayList<>();
             for (Place place : places) {
                 writer.write(place.getName() + ";" + place.getX() + ";" + place.getY());
@@ -416,7 +367,7 @@ public class Gui extends Application {
             writer.write(String.join(";", nodes));
             writer.newLine();*/
 
-           //======== Skriv varje förbindelse======
+           // Skriv varje förbindelse
            for (Place from : graph.getNodes()) {
                 for (Edge<Place> edge : graph.getEdgesFrom(from)) {
                     writer.write(from + ";" + edge.getDestination() + ";" + edge.getName() + ";" + edge.getWeight());
@@ -462,8 +413,6 @@ public class Gui extends Application {
                 save(selectedFile.getAbsolutePath());
                 changed = false;
             }
-            System.out.println(">>> SAVE-KNAPPEN KLICKAD: " + selectedFile.getAbsolutePath());
-
         }
     }
 
@@ -480,31 +429,19 @@ public class Gui extends Application {
     }
     }
 
-    private boolean ExitOk(){
-        if (!changed) return true;
-
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Unsaved changes. Continue anyway?");
-        alert.setTitle("Warning!");
-        alert.getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
-        alert.showAndWait();
-
-        return alert.getResult() == ButtonType.OK;
-
-    }
-
     class ExitHandler implements EventHandler<ActionEvent> {
         public void handle(ActionEvent event) {
-            if (ExitOk()){
-                Platform.exit(); // Avslutar programmet trots ändringar
+            if (confirmDiscard()){
+                Platform.exit(); // Avslutar programmet trots osparade ändringar
             }
         }
     }
 
-    //==============Del 2: Start på HBox. 4.2.1 Knappen new place====================
+    //============== Del 2: Start på HBox. 4.2.1 Knappen new place ====================
     //Punkt 2 enligt deluppgift 4.2.1 forts.
     private void addNewPlace(MouseEvent event) {
-        //Forts. punkt 2 enligt deluppgift 4.2.1 placera ny plats
-        //TextInputDialog är en JavaFX-klass
+        //Forts. punkt 2 enligt deluppgift 4.2.1 placera ny plats.
+        //TextInputDialog är en JavaFX-klass.
         TextInputDialog nameOfPlace = new TextInputDialog();
         nameOfPlace.setTitle("Name");
         nameOfPlace.setHeaderText("Name of Place: ");
@@ -528,7 +465,7 @@ public class Gui extends Application {
             //3.b
             center.setOnMouseClicked(null);
             center.setCursor(Cursor.DEFAULT);
-            //3. c
+            //3.c
             setButtonsDisabled(false);
 
             changed = true;
@@ -555,7 +492,6 @@ public class Gui extends Application {
             //För att ta reda på vilken Place-objekt som man klickade på samt skicka till metoden pickedPlaces().
             //event.getSource() frågar vilken Place som man klickade på
             Place place = (Place) event.getSource();
-            //pickedPlaces(place);
 
             if (place.isSelected()){
                 place.setSelected(false);
@@ -572,7 +508,7 @@ public class Gui extends Application {
         //Två platser måste vara valda
         public void handle(ActionEvent event) {
             if (pickedPlaces.size() < 2) {
-                errorMessage("Two places must be selected");
+                errorMessage("Two locations must be selected!");
                 return;
             }
 
@@ -582,11 +518,11 @@ public class Gui extends Application {
 
             //Kontrollera att det inte redan finns en förbindelse
             if (graph.getEdgeBetween(placeFrom, placeTo) != null) {
-                errorMessage("Thers's allready a connection between these two places!");
+                errorMessage("Thers is allready a connection between these two locations!");
                 return;
             }
 
-            //==============Fönstret för Connection==============
+            // ============== Fönstret för Connection ==============
             Dialog<Pair<String, String>> connection = new Dialog<>();
             connection.setTitle("Connection");
 
@@ -636,7 +572,6 @@ public class Gui extends Application {
                 //Time får endast innehålla siffror
                 try {
                     int weight = Integer.parseInt(timeOutput.trim());
-                    //Integer.parseInt(timeInput.getText().trim());
                     //Om konverteringen till heltal inte funkar visas ett felmeddelande
                     if (weight < 0) throw new NumberFormatException();
 
@@ -658,7 +593,7 @@ public class Gui extends Application {
         @Override
         public void handle(ActionEvent event) {
             if (pickedPlaces.size() < 2) {
-                errorMessage("Du måste markera två platser först.");
+                errorMessage("You need to first select two locations!");
                 return;
             }
 
@@ -669,7 +604,7 @@ public class Gui extends Application {
             Edge<Place> edge = graph.getEdgeBetween(p1, p2);
 
             if (edge == null) {
-                errorMessage("Det finns ingen förbindelse mellan de valda platserna.");
+                errorMessage("There is no connection between the chosen locations!");
                 return;
             }
 
@@ -682,7 +617,7 @@ public class Gui extends Application {
             TextField nameField = new TextField(edge.getName());
             nameField.setEditable(false);
 
-            Label weightLabel = new Label("Vikt:");
+            Label weightLabel = new Label("Time:");
             TextField weightField = new TextField(String.valueOf(edge.getWeight()));
             weightField.setEditable(false);
 
@@ -707,7 +642,7 @@ public class Gui extends Application {
         @Override
         public void handle(ActionEvent event) {
             if (pickedPlaces.size() < 2) {
-                errorMessage("Du måste markera två platser.");
+                errorMessage("You need to select two locations!");
                 return;
             }
 
@@ -716,19 +651,19 @@ public class Gui extends Application {
 
             Edge<Place> edge = graph.getEdgeBetween(p1, p2);
             if (edge == null) {
-                errorMessage("Det finns ingen förbindelse mellan de valda platserna.");
+                errorMessage("There is no connection between the chosen locations!");
                 return;
             }
 
             Dialog<ButtonType> dialog = new Dialog<>();
-            dialog.setTitle("Ändra förbindelse");
-            dialog.setHeaderText("Ändra tiden för förbindelsen mellan " + p1.getName() + " och " + p2.getName());
+            dialog.setTitle("Change connection");
+            dialog.setHeaderText("Change the time för the connection between " + p1.getName() + " and " + p2.getName());
 
-            Label nameLabel = new Label("Namn:");
+            Label nameLabel = new Label("Name:");
             TextField nameField = new TextField(edge.getName());
             nameField.setEditable(false);
 
-            Label weightLabel = new Label("Ny vikt:");
+            Label weightLabel = new Label("New time:");
             TextField weightField = new TextField();
 
             GridPane grid = new GridPane();
@@ -762,7 +697,7 @@ public class Gui extends Application {
                     }
 
                 } catch (NumberFormatException ex) {
-                    errorMessage("Vikten måste vara ett positivt heltal.");
+                    errorMessage("Time must be a number.");
                 }
             }
         }
@@ -774,7 +709,7 @@ public class Gui extends Application {
         @Override
         public void handle(ActionEvent event) {
             if (pickedPlaces.size() < 2) {
-                errorMessage("Du måste markera två platser först.");
+                errorMessage("Two locations must be selected!");
                 return;
             }
 
@@ -789,13 +724,13 @@ public class Gui extends Application {
             pathLines.clear();
 
             if (path == null || path.isEmpty()) {
-                errorMessage("Det finns ingen väg mellan de valda platserna.");
+                errorMessage("There is no road between the selected locations.");
                 return;
             }
 
             Place current = p1;
             int total = 0;
-            String text = "Väg från " + p1.getName() + " till " + p2.getName() + ":\n\n";
+            String text = "Road from " + p1.getName() + " to " + p2.getName() + ":\n\n";
 
             for (Edge<Place> edge : path) {
                 Place next = edge.getDestination();
@@ -814,7 +749,7 @@ public class Gui extends Application {
             text += "\nTotalt: " + total;
 
             Alert dialog = new Alert(Alert.AlertType.INFORMATION);
-            dialog.setTitle("Kortaste väg");
+            dialog.setTitle("Shortest way");
             dialog.setHeaderText(null);
             dialog.setContentText(text);
             dialog.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
@@ -822,10 +757,11 @@ public class Gui extends Application {
         }
     }
 
-    //==============Felmeddelanden====================
+    // ============== Felmeddelanden ================
     private boolean confirmDiscard() {
+        if (!changed) return true;
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
-                "Osparade ändringar finns. Vill du avsluta ändå?", ButtonType.OK, ButtonType.CANCEL);
+                "Unsaved changes, exit anyway?", ButtonType.OK, ButtonType.CANCEL);
         alert.setHeaderText(null);
         return alert.showAndWait().filter(btn -> btn == ButtonType.OK).isPresent();
     }
