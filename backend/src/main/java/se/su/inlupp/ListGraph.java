@@ -14,14 +14,17 @@ public class ListGraph<T> implements Graph<T> {
 
   @Override
   public void add(T node) {
+    //kollar om noden finns, annars lägger den till den
     cities.putIfAbsent(node, new HashSet<>());
   }
 
   @Override
   public void connect(T node1, T node2, String name, int weight) {
+    //kollar först om städerna finns
     if (!cities.containsKey(node1) || !cities.containsKey(node2)) {
       throw new NoSuchElementException("One of the given cities does not exist");
     }
+    //om vikten är mindre än noll så får man ett error-meddelande
     if (weight < 0) {
       throw new IllegalArgumentException("Negative weight not allowed");
     }
@@ -37,12 +40,15 @@ public class ListGraph<T> implements Graph<T> {
 
   @Override
   public void setConnectionWeight(T node1, T node2, int weight) {
+    //kollar igen om städerna finns
     if (!cities.containsKey(node1) || !cities.containsKey(node2)) {
       throw new NoSuchElementException("One of the given cities does not exist");
     }
+    //vikten får inte vara noll
     if (weight < 0) {
       throw new IllegalArgumentException("Weight cannot be less than zero!");
     }
+    //om det inte finns någon connection mellan städerna så skrivs ett error ut
     Edge<T> edge12 = getEdgeBetween(node1, node2);
     Edge<T> edge21 = getEdgeBetween(node2, node1);
     if (edge12 == null || edge21 == null) {
@@ -78,14 +84,17 @@ public class ListGraph<T> implements Graph<T> {
 
   @Override
   public void disconnect(T node1, T node2) {
+    //kollar först om städerna finns
     if (!cities.containsKey(node1) || !cities.containsKey(node2)) {
       throw new NoSuchElementException("One of the given cities does not exist");
     }
+    //kollar om connectionen finns mellan noder
     Edge<T> e12 = getEdgeBetween(node1, node2);
     Edge<T> e21 = getEdgeBetween(node2, node1);
     if (e12 == null || e21 == null) {
       throw new IllegalStateException("Edge does not exist");
     }
+    //kopplar bort connection
     cities.get(node1).remove(e12);
     cities.get(node2).remove(e21);
   }
