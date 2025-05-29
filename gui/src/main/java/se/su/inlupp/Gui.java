@@ -725,6 +725,7 @@ public class Gui extends Application {
         }
     }
 
+    //teständring
     //Felmeddelanden
     private boolean confirmDiscard() {
         if (!changed) return true;
