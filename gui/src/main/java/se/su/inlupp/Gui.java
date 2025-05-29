@@ -1,7 +1,7 @@
 // PROG2 VT2025, inlämningsuppgift del 2
 // grupp 75
 // Sama Matloub sama3201
-// Yasin Akdeve
+// Yasin Akdeve yakk1087
 // Petter Rosén pero0033
 
 package se.su.inlupp;
@@ -38,7 +38,6 @@ import java.util.Optional;
 
 public class Gui extends Application {
     private Stage stage;
-    private final FileChooser fileChooser = new FileChooser();
     private Button findPathButton, showConnectionButton, newPlaceButton, newConnectionButton, changeConnectionButton;
     private boolean changed = false;
     private File imageFile;
@@ -56,10 +55,7 @@ public class Gui extends Application {
         BorderPane root = new BorderPane();
         stage = primaryStage;
 
-        String javaVersion = System.getProperty("java.version");
-        String javafxVersion = System.getProperty("javafx.version");
-
-        // ====== Menyn File i top-BorderPane ======
+        //Menyn File i top-BorderPane
         VBox vbox = new VBox();
         MenuBar menuBar1 = new MenuBar();
         FlowPane controls = new FlowPane();
@@ -90,12 +86,13 @@ public class Gui extends Application {
 
         root.setTop(vbox);
 
-        // ====== Skapa knappar för HBox ======
+        //Skapa knappar för HBox
         newPlaceButton = new Button("New Place");
         newPlaceButton.setOnAction(new NewPlaceHandler());
         newConnectionButton = new Button("New Connection");
         newConnectionButton.setOnAction(new NewConnection());
         showConnectionButton = new Button("Show Connection");
+        showConnectionButton.setOnAction(new ShowConnection());
         changeConnectionButton = new Button("Change Connection");
         changeConnectionButton.setOnAction(new ChangeConnection());
         findPathButton = new Button("Find Path");
@@ -114,7 +111,6 @@ public class Gui extends Application {
         center.getChildren().add(imageView);
         root.setCenter(center);
 
-        //Scene scene = new Scene(root, 640, 480);
         Scene scene = new Scene(root, 620, 840);
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -138,46 +134,7 @@ public class Gui extends Application {
         findPathButton.setDisable(disabled);
     }
 
-    //  ============== 4.1 Menyn File ==============
-    private void manageMapImage(File selectedFile) {
-        try {
-            // Spara filen så att Save vet vilken bild som används
-            imageFile = selectedFile;
-
-            //Rensar Place-listan över tidigare platser
-            places.clear();
-            //Skapa en ny tom graf varje gång man öppnar/laddar en ny fil
-            graph = new ListGraph<>();
-            //Lägg tillbaka kartbilden igen
-            center.getChildren().setAll(imageView);
-
-            //Hämtar bild från vald fil och skapar ett Image-objekt
-            Image image = new Image(selectedFile.toURI().toString());
-
-            // Sätt bild i ImageView
-            imageView.setImage(image);
-
-            // Testar
-            //imageView.setMouseTransparent(true);
-
-            imageView.setPreserveRatio(true);
-
-            center.setPrefSize(image.getWidth(), image.getHeight());
-            stage.setWidth(image.getWidth() + 16);
-            stage.setHeight(image.getHeight() + 150);
-            stage.sizeToScene();
-
-            // Aktivera knappar
-            setButtonsDisabled(false);
-
-            changed = true;
-
-        } catch (Exception e) {
-        Alert alert = new Alert(Alert.AlertType.ERROR, "IO-error " + e.getMessage());
-        alert.showAndWait();
-            }
-    }
-
+    //4.1 Menyn File
     class NewMapHandler implements EventHandler<ActionEvent> {
         @Override
         public void handle(ActionEvent actionEvent) {
@@ -205,28 +162,84 @@ public class Gui extends Application {
         }
     }
 
+    private void manageMapImage(File selectedFile) {
+        try {
+            // Spara filen så att Save-metoden vet vilken bild som används
+            imageFile = selectedFile;
+
+            //Rensar Place-listan över tidigare platser
+            places.clear();
+            //Skapa en ny tom graf varje gång man öppnar/laddar en ny fil
+            graph = new ListGraph<>();
+            //Lägg tillbaka kartbilden igen
+            center.getChildren().setAll(imageView);
+
+            //Hämtar bild från vald fil och skapar ett Image-objekt
+            Image image = new Image(selectedFile.toURI().toString());
+
+            // Sätt bild i ImageView
+            imageView.setImage(image);
+
+            imageView.setPreserveRatio(true);
+
+            center.setPrefSize(image.getWidth(), image.getHeight());
+            stage.setWidth(image.getWidth() + 16);
+            stage.setHeight(image.getHeight() + 150);
+            stage.sizeToScene();
+
+            // Aktivera knappar
+            setButtonsDisabled(false);
+
+            changed = true;
+
+        } catch (Exception e) {
+            Alert alert = new Alert(Alert.AlertType.ERROR, "IO-error " + e.getMessage());
+            alert.showAndWait();
+        }
+    }
+
+    //Hjälpmetod för att hitta en plats via namn
+    private Place findPlaceByName(String name) {
+        for (Place p : places) {
+            if (p.getName().equals(name)) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    class OpenHandler implements EventHandler<ActionEvent> {
+        public void handle(ActionEvent event) {
+            if (changed && !confirmDiscard()) return;
+
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Open a graph-file");
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Graph File", "*.graph"));
+            // Startkatalogsmapp där bild ska laddas ifrån
+            fileChooser.setInitialDirectory(new File("src/main/resources"));
+            // Visa fildialogfönstret
+            File selectedFile = fileChooser.showOpenDialog(stage);
+            if (selectedFile != null) {
+                open(selectedFile.getAbsolutePath()); //returnerar en sträng med hela sökvägen till den valda .graph filen
+                changed = false;
+            }
+        }
+    }
+
     private void open(String fileName) {
         try {
-           BufferedReader reader = new BufferedReader(new FileReader(fileName));
+            BufferedReader reader = new BufferedReader(new FileReader(fileName));
 
-            //Första raden i filen för att ladda kartbilden (krav enligt uppgiften)
+            //Första raden i filen för att ladda kartbilden
             String imagePath = reader.readLine();
-            System.out.println("imagepath " + imagePath);
 
             if (imagePath.startsWith("file:")) {
                 imagePath = imagePath.substring(5);
             }
 
-            // Sökväg till .graph-filen
-            File graphFile = new File(fileName);
-            File imageDir = graphFile.getParentFile();
-            imageFile = new File(imageDir, imagePath);
+            // Skapar sökväg till kartbilden som finns i graf filen
+            imageFile = new File(new File(fileName).getParent(), imagePath);
 
-            if (imagePath == null || imagePath.isEmpty()) {
-                throw new IOException("File not found!");
-            }
-
-            //imageFile = new File(imagePath);
             Image image = new Image(imageFile.toURI().toString());
 
             imageView.setImage(image);
@@ -243,8 +256,8 @@ public class Gui extends Application {
             center.getChildren().setAll(imageView);
 
             // Läs in platser från graph-filen
-            String placeLine = reader.readLine();
-            String[] tokens = placeLine.split(";");
+            String readRowTwo = reader.readLine();
+            String[] tokens = readRowTwo.split(";");
             for (int i = 0; i < tokens.length; i = i+3) {
                 String name = tokens[i];
                 double x = Double.parseDouble(tokens[i + 1]);
@@ -259,32 +272,33 @@ public class Gui extends Application {
                 place.setOnMouseClicked(new PickedPlacesClickHandler());
 
                 center.getChildren().add(place);
+
+                // Lägg till namn på noderna i kartan
+                Label label = new Label(name);
+                label.setLayoutX(x);
+                label.setLayoutY(y);
+                label.setStyle("-fx-font-weight: bold;");
+                center.getChildren().add(label);
             }
 
             // 2. Läs återstående rader i filen, förbindelserna.
+            String rows;
+            while ((rows = reader.readLine()) != null) {
+                String[] tokens2 = rows.split(";");
 
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(";");
-                if (parts.length != 4) continue;
+                //Startdestination för förbindelsen
+                Place from = findPlaceByName(tokens2[0]);
+                //Slutdestination för förbindelsen
+                Place to = findPlaceByName(tokens2[1]);
 
-                String fromName = parts[0];
-                String toName = parts[1];
-                String connectionName = parts[2];
-                int weight = Integer.parseInt(parts[3]);
+                //Kontrollera att båda platserna/noderna finns samt att det inte finns någon förbindelse i både riktningarna mellan dem.
+                if (from != null && to != null && graph.getEdgeBetween(from, to) == null && graph.getEdgeBetween(to, from) == null){
 
-                Place from = findPlaceByName(fromName);
-                Place to = findPlaceByName(toName);
+                    int weight = Integer.parseInt(tokens2[3]);
+                    graph.connect(from, to, tokens2[2], weight);
 
-                if (from != null && to != null &&
-                        graph.getEdgeBetween(from, to) == null &&
-                        graph.getEdgeBetween(to, from) == null) {
-
-                    graph.connect(from, to, connectionName, weight);
-
-                    // Rita linje
-                    Line connLine = new Line(from.getX(), from.getY(), to.getX(), to.getY());
-                    center.getChildren().add(connLine);
+                    Line connectionLine = new Line(from.getX(), from.getY(), to.getX(), to.getY());
+                    center.getChildren().add(connectionLine);
                 }
             }
 
@@ -301,109 +315,11 @@ public class Gui extends Application {
         }
     }
 
-    // Hjälpmetod för att hitta en plats via namn
-    private Place findPlaceByName(String name) {
-        return places.stream().filter(p -> p.getName().equals(name)).findFirst().orElse(null);
-    }
-
-    class OpenHandler implements EventHandler<ActionEvent> {
-        public void handle(ActionEvent event) {
-            if (changed && !confirmDiscard()) return;
-
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Open a graf-file");
-            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Graph File", "*.graph"));
-            // Startkatalogsmapp där bild ska laddas ifrån
-            fileChooser.setInitialDirectory(new File("src/main/resources"));
-            // Visa fildialogfönstret
-            File selectedFile = fileChooser.showOpenDialog(stage);
-            if (selectedFile != null) {
-                System.out.println("Path is : " + selectedFile.getAbsolutePath());
-                open(selectedFile.getAbsolutePath()); //returnerar en sträng med sökvärden
-                //open("europa.gif"); //returnerar en sträng med sökvärden
-                changed = false;
-            }
-        }
-    }
-
-    // ===== Sparar info om kartan och grafen med noder och förbindelser =====
-    private void save(String fileName) {
-        try {
-            // Kontroll att det finns något att spara
-            if (imageFile == null) {
-                Alert alert = new Alert(Alert.AlertType.ERROR, "No image selected!");
-                alert.setHeaderText("Save Error");
-                alert.showAndWait();
-                return;
-            }
-
-            BufferedWriter writer = new BufferedWriter(new FileWriter(fileName));
-
-            writer.write("file:" + imageFile.getName());
-            writer.newLine();
-
-            /*List<String> nodes = new ArrayList<>();
-            for (Place place : places) {
-                nodes.add(place.getName() + ";" + place.getX() + ";" + place.getY());
-            }
-            for (String node : nodes) {
-                writer.write(node);
-                writer.newLine();
-            }*/
-
-            // ====== Skriv alla noder =====
-            List<String> nodes = new ArrayList<>();
-            for (Place place : places) {
-                writer.write(place.getName() + ";" + place.getX() + ";" + place.getY());
-            }
-            writer.write(String.join(";", nodes)); // Sammanfogar alla platser i en rad
-            writer.newLine();
-
-            // Skriv alla noder
-            /*List<String> nodes = new ArrayList<>();
-            for (Place place : places) {
-                nodes.add(place.getName() + ";" + place.getX() + ";" + place.getY());
-            }
-            writer.write(String.join(";", nodes));
-            writer.newLine();*/
-
-           // Skriv varje förbindelse
-           for (Place from : graph.getNodes()) {
-                for (Edge<Place> edge : graph.getEdgesFrom(from)) {
-                    writer.write(from + ";" + edge.getDestination() + ";" + edge.getName() + ";" + edge.getWeight());
-                    writer.newLine();
-                }
-            }
-
-            //writer.write(from.getName() + ";" + to.getName() + ";" + edge.getName() + ";" + edge.getWeight());
-
-            /*for (Place from : graph.getNodes()) {
-                for (Edge<Place> edge : graph.getEdgesFrom(from)) {
-                    Place to = edge.getDestination();
-                    if (from.getName().compareTo(to.getName()) < 0) {
-                        writer.write(from.getName() + ";" + to.getName() + ";" + edge.getName() + ";" + edge.getWeight());
-                        writer.newLine();
-                    }
-                }
-            }*/
-
-            writer.close();
-
-            changed = false;
-
-            } catch(FileNotFoundException e){
-                Alert alert = new Alert(Alert.AlertType.ERROR, "Can't open file!");
-                alert.showAndWait();
-            } catch(IOException e){
-                Alert alert = new Alert(Alert.AlertType.ERROR, "IO-error " + e.getMessage());
-                alert.showAndWait();
-            }
-        }
-
+    //Sparar info om kartan och grafen med noder och förbindelser
     class SaveHandler implements EventHandler<ActionEvent> {
         public void handle(ActionEvent event){
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Save your graf-file");
+            fileChooser.setTitle("Save your graph-file");
             fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Graph File", "*.graph"));
             // Startkatalogsmapp där bild ska laddas ifrån
             fileChooser.setInitialDirectory(new File("src/main/resources"));
@@ -416,15 +332,59 @@ public class Gui extends Application {
         }
     }
 
+    private void save(String fileName) {
+        try {
+            // Kontrollera att det finns något att spara
+            if (imageFile == null) {
+                Alert alert = new Alert(Alert.AlertType.ERROR, "No image selected!");
+                alert.setHeaderText("Save Error");
+                alert.showAndWait();
+                return;
+            }
+
+            BufferedWriter writer = new BufferedWriter(new FileWriter(fileName));
+
+            writer.write("file:" + imageFile.getName());
+            writer.newLine();
+
+            //Skriv alla noder
+            List<String> nodes = new ArrayList<>();
+            for (Place place : places) {
+                writer.write(place.getName() + ";" + place.getX() + ";" + place.getY());
+            }
+            writer.write(String.join(";", nodes)); // Sammanfogar alla platser i en rad
+            writer.newLine();
+
+            // Skriv varje förbindelse
+            for (Place from : graph.getNodes()) {
+                for (Edge<Place> edge : graph.getEdgesFrom(from)) {
+                    writer.write(from + ";" + edge.getDestination() + ";" + edge.getName() + ";" + edge.getWeight());
+                    writer.newLine();
+                }
+            }
+
+            writer.close();
+
+            changed = false;
+
+        } catch(FileNotFoundException e){
+            Alert alert = new Alert(Alert.AlertType.ERROR, "Can't open file!");
+            alert.showAndWait();
+        } catch(IOException e){
+            Alert alert = new Alert(Alert.AlertType.ERROR, "IO-error " + e.getMessage());
+            alert.showAndWait();
+        }
+    }
+
     class SaveImageHandler implements EventHandler<ActionEvent> {
         public void handle(ActionEvent event) {
         WritableImage snapshot = center.snapshot(new SnapshotParameters(), null);
         File file = new File("src/main/java/se/su/inlupp/capture.png");
         try {
             ImageIO.write(SwingFXUtils.fromFXImage(snapshot, null), "png", file);
-            showInfo("Skärmbild sparad som capture.png.");
+            showInfo("Screenshot saved as capture.png.");
         } catch (IOException ex) {
-            errorMessage("Kunde inte spara bild: " + ex.getMessage());
+            errorMessage("Could not save image: " + ex.getMessage());
         }
     }
     }
@@ -437,8 +397,7 @@ public class Gui extends Application {
         }
     }
 
-    //============== Del 2: Start på HBox. 4.2.1 Knappen new place ====================
-    //Punkt 2 enligt deluppgift 4.2.1 forts.
+    //Del 2: Start på HBox. 4.2.1 Knappen new place
     private void addNewPlace(MouseEvent event) {
         //Forts. punkt 2 enligt deluppgift 4.2.1 placera ny plats.
         //TextInputDialog är en JavaFX-klass.
@@ -486,7 +445,7 @@ public class Gui extends Application {
         }
     }
 
-    //==============Del 2: 4.2.2 Platser==================
+    //              Del 2: 4.2.2 Platser
     class PickedPlacesClickHandler implements EventHandler<MouseEvent>{
         public void handle(MouseEvent event) {
             //För att ta reda på vilken Place-objekt som man klickade på samt skicka till metoden pickedPlaces().
@@ -503,7 +462,7 @@ public class Gui extends Application {
         }
     }
 
-    //==============Del 2: New connection====================
+    //              Del 2: New connection
     class NewConnection implements EventHandler<ActionEvent>{
         //Två platser måste vara valda
         public void handle(ActionEvent event) {
@@ -512,20 +471,21 @@ public class Gui extends Application {
                 return;
             }
 
-            //Hämta de två markerade platserna i listan pickedPlaces
+            //Hämta de två markerade platserna i pickedPlaces
             Place placeFrom = pickedPlaces.get(0);
             Place placeTo = pickedPlaces.get(1);
 
             //Kontrollera att det inte redan finns en förbindelse
             if (graph.getEdgeBetween(placeFrom, placeTo) != null) {
-                errorMessage("Thers is allready a connection between these two locations!");
+                errorMessage("There is already a connection between these two locations!");
                 return;
             }
 
-            // ============== Fönstret för Connection ==============
+            //Fönstret för Connection
             Dialog<Pair<String, String>> connection = new Dialog<>();
             connection.setTitle("Connection");
 
+            //skriv ut namnet på de två valda punkterna
             connection.setHeaderText("Connection from " + placeFrom.getName() + " to " + placeTo.getName());
 
             ButtonType OK = new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
@@ -557,7 +517,7 @@ public class Gui extends Application {
             //Visning av fönstret
             Optional<Pair<String, String>> output = connection.showAndWait();
 
-            //Om klickar "OK" hämtas användarens input och sparas i variabler
+            //Om man klickar "OK" hämtas användarens input och sparas i variabler
             if (output.isPresent()) {
                 Pair<String, String> pair = output.get();
                 String nameOutput = pair.getKey();
@@ -582,8 +542,7 @@ public class Gui extends Application {
                     changed = true;
 
                 } catch (NumberFormatException e) {
-                    errorMessage("Invalid time format! Please enter a number.");
-                    return;
+                    errorMessage("Invalid time format! Please enter a positive number.");
                 }
             }
         }
@@ -592,6 +551,7 @@ public class Gui extends Application {
     class ShowConnection implements EventHandler<ActionEvent> {
         @Override
         public void handle(ActionEvent event) {
+            //kolla att två platser är valda, annars skriv ut error meddelande
             if (pickedPlaces.size() < 2) {
                 errorMessage("You need to first select two locations!");
                 return;
@@ -600,9 +560,10 @@ public class Gui extends Application {
             Place p1 = pickedPlaces.get(0);
             Place p2 = pickedPlaces.get(1);
 
-            // Försök hämta förbindelsen mellan p1 och p2
+            // Hämta förbindelsen mellan platserna p1 och p2
             Edge<Place> edge = graph.getEdgeBetween(p1, p2);
 
+            //om det inte finns en förbindelse skriv ut error meddelande
             if (edge == null) {
                 errorMessage("There is no connection between the chosen locations!");
                 return;
@@ -610,10 +571,10 @@ public class Gui extends Application {
 
             // Visa dialogfönster med information om förbindelsen
             Dialog<Void> dialog = new Dialog<>();
-            dialog.setTitle("Förbindelseinfo");
-            dialog.setHeaderText("Information om förbindelsen");
+            dialog.setTitle("Connection");
+            dialog.setHeaderText("Connection from " + p1.getName() + " to " + p2.getName());
 
-            Label nameLabel = new Label("Namn:");
+            Label nameLabel = new Label("Name:");
             TextField nameField = new TextField(edge.getName());
             nameField.setEditable(false);
 
@@ -641,6 +602,7 @@ public class Gui extends Application {
     class ChangeConnection implements EventHandler<ActionEvent> {
         @Override
         public void handle(ActionEvent event) {
+            //kolla att två platser är valda, annars skriv ut error meddelande
             if (pickedPlaces.size() < 2) {
                 errorMessage("You need to select two locations!");
                 return;
@@ -649,15 +611,17 @@ public class Gui extends Application {
             Place p1 = pickedPlaces.get(0);
             Place p2 = pickedPlaces.get(1);
 
+            //om det inte finns en förbindelse mellan de valda punkterna skrivs error ut
             Edge<Place> edge = graph.getEdgeBetween(p1, p2);
             if (edge == null) {
                 errorMessage("There is no connection between the chosen locations!");
                 return;
             }
 
+            //öppna en dialogruta där man kan ändra vikten på förbindelsen, men inte på namnet
             Dialog<ButtonType> dialog = new Dialog<>();
             dialog.setTitle("Change connection");
-            dialog.setHeaderText("Change the time för the connection between " + p1.getName() + " and " + p2.getName());
+            dialog.setHeaderText("Change the time for the connection between " + p1.getName() + " and " + p2.getName());
 
             Label nameLabel = new Label("Name:");
             TextField nameField = new TextField(edge.getName());
@@ -681,6 +645,7 @@ public class Gui extends Application {
 
             Optional<ButtonType> result = dialog.showAndWait();
 
+            //spara det nya viktvärdet
             if (result.isPresent() && result.get() == ButtonType.OK) {
                 try {
                     int newWeight = Integer.parseInt(weightField.getText().trim());
@@ -708,6 +673,7 @@ public class Gui extends Application {
 
         @Override
         public void handle(ActionEvent event) {
+            //kolla så att två platser är valda, annars skrivs error ut
             if (pickedPlaces.size() < 2) {
                 errorMessage("Two locations must be selected!");
                 return;
@@ -723,6 +689,7 @@ public class Gui extends Application {
             }
             pathLines.clear();
 
+            //om det inte finns någon väg mellan de två punkterna så skriv ut ett error meddelande
             if (path == null || path.isEmpty()) {
                 errorMessage("There is no road between the selected locations.");
                 return;
@@ -732,6 +699,7 @@ public class Gui extends Application {
             int total = 0;
             String text = "Road from " + p1.getName() + " to " + p2.getName() + ":\n\n";
 
+            //markera vägen på kartan med grönt mellan de valda punkterna
             for (Edge<Place> edge : path) {
                 Place next = edge.getDestination();
 
@@ -757,11 +725,11 @@ public class Gui extends Application {
         }
     }
 
-    // ============== Felmeddelanden ================
+    //Felmeddelanden
     private boolean confirmDiscard() {
         if (!changed) return true;
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
-                "Unsaved changes, exit anyway?", ButtonType.OK, ButtonType.CANCEL);
+                "Unsaved changes, continue anyway?", ButtonType.OK, ButtonType.CANCEL);
         alert.setHeaderText(null);
         return alert.showAndWait().filter(btn -> btn == ButtonType.OK).isPresent();
     }

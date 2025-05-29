@@ -1,13 +1,11 @@
 // PROG2 VT2025, inlämningsuppgift del 2
 // grupp 75
 // Sama Matloub sama3201
-// Yasin Akdeve
+// Yasin Akdeve yakk1087
 // Petter Rosén pero0033
 
 package se.su.inlupp;
 
-import javafx.event.EventHandler;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 
