@@ -729,7 +729,7 @@ public class Gui extends Application {
     private boolean confirmDiscard() {
         if (!changed) return true;
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
-                "Unsaved changes, continue anyway?", ButtonType.OK, ButtonType.CANCEL);
+                "Unsaved changes, continue anyway? ", ButtonType.OK, ButtonType.CANCEL);
         alert.setHeaderText(null);
         return alert.showAndWait().filter(btn -> btn == ButtonType.OK).isPresent();
     }
